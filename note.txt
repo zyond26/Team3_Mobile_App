@@ -1,0 +1,25 @@
+Note môn mobile_app
+
+- Cài đặt expo để lúc tạo project tiện hơn 
+
+*** chạy trên mobile
+expo npm install -g expo-cli
+
+- expo --version
+
+- expo init TenProjectCuaToi
+
+- cd TenProjectCuaToi
+
+- npm start
+
+quét mã ròi chỉnh code ở file App.js để hiển thị luôn trên điện thoại 
+
+*** CHẠY trên web 
+
+- npx create-expo-app < tên project>
+
+- cd đến <tên project> 
+
+- npx expo start
+

@@ -23,3 +23,9 @@ quét mã ròi chỉnh code ở file App.js để hiển thị luôn trên đi�
 
 - npx expo start
 
+
+- cài đặt framework fastapi của python : pip install fastapi uvicorn sqlalchemy pyodbc pydantic
+
+-lệnh chạy framework của backend python gọi api là :
+
+uvicorn main:app --reload 

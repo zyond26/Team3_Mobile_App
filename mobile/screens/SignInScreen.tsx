@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import {
   View,
@@ -10,8 +11,7 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-// Update the import path if needed, or create the file if missing
-import { login } from '../API/api'; // <-- gọi API login
+import { login } from '../API/api';
 
 export default function SignInScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -24,38 +24,27 @@ export default function SignInScreen() {
       Alert.alert("Lỗi", "Vui lòng nhập đầy đủ email và mật khẩu.");
       return;
     }
-
     try {
       const response = await login({ email, password });
-
-      if (!response || !response.data) {
-        Alert.alert("Lỗi", "Phản hồi không hợp lệ từ máy chủ.");
-        return;
-      }
-
-      console.log("Login response:", response.data);
-
-      // Nếu có dùng token:
-      // await AsyncStorage.setItem('token', response.data.access_token);
-
-      Alert.alert("Đăng nhập thành công!", "", [
-        {
-          text: "OK",
-          onPress: () => {
-            try {
+      if (response && response.data && response.data.user_id) {
+        const userId = response.data.user_id.toString();
+        await AsyncStorage.setItem('user_id', userId); // Lưu user_id
+        console.log("Đã lưu user_id:", userId); // Debug
+        Alert.alert("Thành công", response.data.msg || "Đăng nhập thành công!", [
+          {
+            text: "OK",
+            onPress: () => {
               router.replace('/home');
-            } catch (e) {
-              console.log("Lỗi khi chuyển trang:", e);
-            }
+            },
           },
-        },
-      ]);
+        ]);
+      } else {
+        Alert.alert("Lỗi", "Phản hồi từ server không chứa user_id.");
+      }
     } catch (err: any) {
-      console.error("Lỗi đăng nhập:", err.message, err.response?.data);
-      Alert.alert("Đăng nhập thất bại", err.response?.data?.detail || 'Lỗi không xác định.');
+      Alert.alert("Lỗi đăng nhập", err.response?.data?.detail || 'Không thể đăng nhập, vui lòng thử lại.');
     }
   };
-
   return (
     <View style={styles.container}>
       <Image
@@ -63,19 +52,16 @@ export default function SignInScreen() {
         style={styles.logo}
         resizeMode="contain"
       />
-
       <Text style={styles.title}>Sign In</Text>
-
       <TextInput
         style={styles.input}
-        placeholder="E-mail address"
+        placeholder="Địa chỉ email"
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
         placeholderTextColor="#999"
       />
-
       <View style={styles.passwordContainer}>
         <TextInput
           style={styles.input}
@@ -96,18 +82,15 @@ export default function SignInScreen() {
           />
         </TouchableOpacity>
       </View>
-
       <TouchableOpacity
         style={styles.forgotPassword}
         onPress={() => router.push('/forgot')}
       >
         <Text style={styles.forgotText}>Quên mật khẩu?</Text>
       </TouchableOpacity>
-
       <TouchableOpacity style={styles.button} onPress={handleSignIn}>
         <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>
-
       <Text style={styles.socialText}>hoặc bạn có thể đăng nhập bằng</Text>
       <View style={styles.separator} />
       <View style={styles.socialButtons}>

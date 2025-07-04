@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Image, TextInput, TouchableOpacity,
   ScrollView, Modal, Button, Linking,
+  Alert,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
 import { search, addToFavorites } from '../API/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ResultItem = {
   product_id: string | number;
@@ -22,7 +24,6 @@ type ResultItem = {
   };
 };
 
-
 type PlatformLogos = {
   [platformName: string]: string;
 };
@@ -33,15 +34,36 @@ const PLATFORM_LOGOS: PlatformLogos = {
   Lazada: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTBOnqSiSQmTu6-HHdvmZJPorfOoNam02mQ8w&s',
 };
 
+import type { StackNavigationProp } from '@react-navigation/stack';
+
+type RootStackParamList = {
+  trangchu: undefined;
+  explore: undefined;
+  favorite: undefined;
+  profile: undefined;
+};
+
 export default function Explore() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [searchText, setSearchText] = useState('');
   const [results, setResults] = useState<ResultItem[]>([]);
   const [showPriceFilter, setShowPriceFilter] = useState(false);
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(50000000);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  const categories = [
+    { id: 'fashion', label: ' Thời trang & phụ kiện' },
+    { id: 'beauty', label: ' Mỹ phẩm & làm đẹp' },
+    { id: 'mobile', label: ' Điện thoại di động' },
+    { id: 'laptop', label: ' Laptop & máy tính bảng' },
+    { id: 'sport', label: ' Thiết bị thể thao' },
+    { id: 'stationery', label: ' Đồ dùng học tập' },
+  ];
+
+
 
   const handleSearch = async () => {
     try {
@@ -49,7 +71,7 @@ export default function Explore() {
       const data = res.data;
 
       // Flatten mỗi platform thành 1 card riêng
-      const allCards: ResultItem[] = data.flatMap((product) => {
+      const allCards: ResultItem[] = data.flatMap((product: { platforms: any[]; product_id: any; image_url: any; }) => {
         if (!product.platforms || product.platforms.length === 0) return [];
 
         return product.platforms.map((pf) => ({
@@ -72,38 +94,41 @@ export default function Explore() {
         (item) => item.price >= minPrice && item.price <= maxPrice
       );
 
-      // Sắp xếp theo giá
-      filtered.sort((a, b) =>
-        sortOrder === 'asc' ? a.price - b.price : b.price - a.price
-      );
-
       setResults(filtered);
     } catch (error) {
       console.error('Search error:', error);
     }
   };
 
-  const toggleFavorite = async (product_id: number) => {
-    try {
-      await addToFavorites(product_id);
-      setFavorites(prev => {
-        const updated = new Set(prev);
-        if (updated.has(product_id.toString())) updated.delete(product_id.toString());
-        else updated.add(product_id.toString());
-        return updated;
-      });
-    } catch (err) {
-      console.error('Favorite error:', err);
+  const handleToggleFavorite = async (productId: number) => {
+    const userId = await AsyncStorage.getItem('user_id');
+    if (!userId) {
+      Alert.alert("Lỗi", "Không tìm thấy user_id, vui lòng đăng nhập lại.");
+      return;
     }
+    const key = productId.toString();
+
+    try {
+      const res = await addToFavorites(userId, productId);
+      Alert.alert('Thành công', res.data.msg || 'Đã thêm sản phẩm vào yêu thích!');
+    } catch (err: any) {
+      // ✅ Xử lý lỗi cụ thể nếu đã yêu thích
+      if (err.response?.data?.detail === "Sản phẩm đã được yêu thích.") {
+        Alert.alert("Thông báo", "Sản phẩm này đã có trong danh sách yêu thích.");
+      } else {
+        Alert.alert("Lỗi", `Không thể thêm vào yêu thích: ${err.response?.data?.detail || 'Vui lòng thử lại.'}`);
+      }
+    }
+
   };
 
-  const handleTabPress = (label) => {
+  const handleTabPress = (label: keyof RootStackParamList) => {
     navigation.navigate(label);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.pageTitle}>Finding </Text>
+      <Text style={styles.pageTitle}>Tìm kiếm </Text>
 
       <View style={styles.searchContainer}>
         <TextInput
@@ -124,13 +149,10 @@ export default function Explore() {
           <Text style={styles.filterText}> Từ {minPrice.toLocaleString()}đ đến {maxPrice.toLocaleString()}đ</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-        >
-          <FontAwesome name="sort-amount-asc" size={16} color="#333" />
+        <TouchableOpacity style={styles.filterBox} onPress={() => setShowCategoryFilter(true)}>
+          <FontAwesome name="tags" size={16} color="#333" />
           <Text style={styles.filterText}>
-            {sortOrder === 'asc' ? ' Giá tăng dần' : ' Giá giảm dần'}
+            Danh mục: {selectedCategory ? selectedCategory : 'Chọn'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -160,8 +182,31 @@ export default function Explore() {
         </View>
       </Modal>
 
+      <Modal visible={showCategoryFilter} animationType="slide" transparent={true}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}> Chọn danh mục</Text>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.categoryOption, selectedCategory === cat.label && styles.selectedCategory]}
+                onPress={() => {
+                  setSelectedCategory(cat.label);
+                  setShowCategoryFilter(false);
+                }}>
+                <Text
+                  style={[styles.categoryText, selectedCategory === cat.label && styles.selectedText]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <Button title="Đóng" onPress={() => setShowCategoryFilter(false)} />
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView>
-        <Text style={styles.resultsText}>{results.length} results for  "{searchText}"</Text>
+        <Text style={styles.resultsText}>{results.length} kết quả cho  "{searchText}"</Text>
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           {results.map((item, index) => (
@@ -172,7 +217,7 @@ export default function Explore() {
               />
               <TouchableOpacity
                 style={styles.favoriteIcon}
-                onPress={() => addToFavorites(1, item.product_id)}
+                onPress={() => handleToggleFavorite(Number(item.product_id))}
               >
                 <FontAwesome
                   name={favorites.has(item.product_id.toString()) ? 'heart' : 'heart-o'}
@@ -200,12 +245,14 @@ export default function Explore() {
       </ScrollView>
 
       <View style={styles.bottomTab}>
-        {[
-          { icon: 'home', label: 'trangchu', text: 'Trang chủ' },
-          { icon: 'search', label: 'explore', text: 'Khám phá' },
-          { icon: 'heart', label: 'favorite', text: 'Yêu thích' },
-          { icon: 'user', label: 'profile', text: 'Cá nhân' },
-        ].map((tab, index) => (
+        {(
+          [
+            { icon: 'home', label: 'trangchu', text: 'Trang chủ' },
+            { icon: 'search', label: 'explore', text: 'Khám phá' },
+            { icon: 'heart', label: 'favorite', text: 'Yêu thích' },
+            { icon: 'user', label: 'profile', text: 'Cá nhân' },
+          ] as { icon: 'home' | 'search' | 'heart' | 'user', label: keyof RootStackParamList, text: string }[]
+        ).map((tab, index) => (
           <TouchableOpacity key={index} style={styles.tab} onPress={() => handleTabPress(tab.label)}>
             <FontAwesome name={tab.icon} size={28} color="#000" />
             <Text style={styles.tabText}>{tab.text}</Text>
@@ -222,6 +269,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingTop: 40,
     paddingHorizontal: 16,
+    marginTop: 10
   },
   pageTitle: {
     fontSize: 24,
@@ -262,15 +310,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#e6e6e6',
     borderRadius: 8,
     padding: 8,
-  },
-  sortButton: {
-    marginLeft: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginLeft: 10
   },
   filterText: {
     fontSize: 14,
-    marginLeft: 4,
+    marginLeft: 10,
   },
   modalContainer: {
     flex: 1,
@@ -369,6 +413,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 120,
+  },
+  categoryOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  categoryText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  selectedCategory: {
+    backgroundColor: '#D17842',
+    borderColor: '#D17842',
+  },
+  selectedText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
   tab: {
     alignItems: 'center',

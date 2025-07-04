@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// screens/ThongTinCaNhan.tsx
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,51 +9,105 @@ import {
   TextInput,
   Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUserInfo, updateUserInfo } from '@/API/api';
 
-export default function ThongTinCaNhan() {
-  const [userInfo, setUserInfo] = useState({
-    username: 'sam123',
-    email: 'sam@example.com',
-    password: '********',
-    fullName: 'Nguyễn Văn Sam',
-    phone: '0901234567',
-    address: '123 Đường Lê Lợi, Quận 1, TP.HCM',
+export default function thongtincanhan() {
+  const [userInfo, setUserInfo] = useState<any>({
+    username: '',
+    email: '',
+    full_name: '',
+    phone_number: '',
+    address: ''
   });
 
-  const [editingField, setEditingField] = useState(null); // field đang được sửa
-  const [tempValue, setTempValue] = useState(''); // giá trị nhập tạm thời
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempValue, setTempValue] = useState('');
+
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      const userId = await AsyncStorage.getItem('user_id');
+      if (!userId) {
+        Alert.alert("Lỗi", "Không tìm thấy user_id. Vui lòng đăng nhập lại.");
+        return;
+      }
+
+      try {
+        const res = await getUserInfo(Number(userId));
+        setUserInfo(res.data);
+      } catch (err: any) {
+        Alert.alert("Lỗi", `Không thể tải thông tin người dùng: ${err.response?.data?.detail || 'Vui lòng thử lại.'}`);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   const handleEdit = (field: string, value: string) => {
     setEditingField(field);
     setTempValue(value);
   };
 
-  const handleSave = () => {
-    setUserInfo({ ...userInfo, [editingField]: tempValue });
-    setEditingField(null);
+  const handleSave = async () => {
+    const userId = await AsyncStorage.getItem('user_id');
+    if (!userId || !editingField) return;
+    if (editingField === 'phone_number' && !/^\d{9,11}$/.test(tempValue)) {
+      Alert.alert("Lỗi", "Số điện thoại phải có từ 9 đến 11 chữ số.");
+      return;
+    }
+
+    try {
+      // Gửi field cần cập nhật
+      await updateUserInfo(Number(userId), { [editingField]: tempValue });
+
+      // ✅ Sau khi cập nhật thành công, gọi lại API để lấy dữ liệu mới
+      const res = await getUserInfo(Number(userId));
+      setUserInfo(res.data);
+
+      setEditingField(null);
+      Alert.alert("Thành công", "Thông tin đã được cập nhật.");
+    } catch (err: any) {
+      Alert.alert("Lỗi", `Không thể cập nhật thông tin: ${err.response?.data?.detail || 'Vui lòng thử lại.'}`);
+    }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Thông Tin Cá Nhân</Text>
 
-      {Object.entries(userInfo).map(([field, value]) => (
+      {[
+        ['username', userInfo.username],
+        ['email', userInfo.email],
+        ['full_name', userInfo.full_name],
+        ['phone_number', userInfo.phone_number],
+        ['address', userInfo.address],
+      ].map(([field, value]) => (
         <TouchableOpacity
           key={field}
           style={styles.infoBox}
-          onPress={() => handleEdit(field, value)}
+          onPress={() => handleEdit(field, value || '')}
+          disabled={field === 'username' || field === 'email'}
         >
           <Text style={styles.label}>{getLabel(field)}</Text>
           {editingField === field ? (
             <TextInput
               style={styles.input}
               value={tempValue}
-              onChangeText={setTempValue}
+              keyboardType={field === 'phone_number' ? 'numeric' : 'default'}
+              onChangeText={(text) => {
+                if (field === 'phone_number') {
+                  const onlyNumbers = text.replace(/[^0-9]/g, '');
+                  setTempValue(onlyNumbers);
+                } else {
+                  setTempValue(text);
+                }
+              }}
               onSubmitEditing={handleSave}
               autoFocus
             />
+
           ) : (
-            <Text style={styles.value}>{value}</Text>
+            <Text style={styles.value}>{value || 'Chưa có'}</Text>
           )}
         </TouchableOpacity>
       ))}
@@ -70,9 +125,8 @@ const getLabel = (field: string) => {
   switch (field) {
     case 'username': return 'Tên đăng nhập';
     case 'email': return 'Email';
-    case 'password': return 'Mật khẩu';
-    case 'fullName': return 'Họ và tên';
-    case 'phone': return 'Số điện thoại';
+    case 'full_name': return 'Họ và tên';
+    case 'phone_number': return 'Số điện thoại';
     case 'address': return 'Địa chỉ';
     default: return field;
   }

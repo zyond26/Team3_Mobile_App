@@ -7,7 +7,8 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-@router.post("/signin")
+@router.post("/login")
 def login(request: LoginRequest):
-    # Xác thực tạm thời (cho phép mọi người đăng nhập)
-    return {"message": "Login successful"}
+    # Logic tạm thời, thay bằng gọi tới users.py sau
+    return {"message": "Login successful", "user_id": 1}  # Thay 1 bằng user_id thực tế
+

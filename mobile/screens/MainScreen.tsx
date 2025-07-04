@@ -11,8 +11,8 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
 import HomeSlider from '../components/HomeSlider';
-import Icon from 'react-native-vector-icons/MaterialIcons'; 
-import { router } from 'expo-router'; 
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { router } from 'expo-router';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -79,7 +79,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Home Slider */}
-        <HomeSlider 
+        <HomeSlider
           data={sliderData}
           autoPlay={true}
           autoPlayInterval={4000}
@@ -91,29 +91,39 @@ export default function HomeScreen() {
         {/* Grid Categories */}
         <View style={styles.categoryGrid}>
           {[
-            { 
-              img: require('../assets/images/category.png'), 
+            {
+              img: require('../assets/images/category.png'),
               label: 'Thời trang&Phụ kiện',
               link: ''
             },
-            { 
-              img: require('../assets/images/comestic.png'), 
+            {
+              img: require('../assets/images/comestic.png'),
               label: 'Mỹ phẩm & Làm đẹp',
               link: ''
             },
-            { 
-              img: require('../assets/images/laptopmaytinhbang.png'), 
+            {
+              img: require('../assets/images/laptopmaytinhbang.png'),
               label: 'Laptop và Tablet',
               link: ''
             },
-            { 
-              img: require('../assets/images/thietbithethao.png'), 
+            {
+              img: require('../assets/images/thietbithethao.png'),
               label: 'Thiết bị thể thao',
               link: ''
             },
+            {
+              img: require('../assets/images/dienthoaididong.jpg'),
+              label: 'Điện thoại di động',
+              link: ''
+            },
+            {
+              img: require('../assets/images/dodunghoctap.png'),
+              label: 'Đồ dùng học tập',
+              link: ''
+            },
           ].map((cat, index) => (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={styles.categoryGridItem}
               onPress={() => {
                 // Xử lý khi nhấn vào category
@@ -161,7 +171,7 @@ export default function HomeScreen() {
               <Text style={styles.originalPrice}>34.490.000 đ</Text>
               <Text style={styles.discount}>-4%</Text>
             </View>
-            
+
 
             {/* Details Section */}
             <View style={styles.details}>
@@ -204,7 +214,7 @@ export default function HomeScreen() {
               <Text style={styles.originalPrice}>15.000.000 đ</Text>
               <Text style={styles.discount}>-10%</Text>
             </View>
-            
+
 
             {/* Details Section */}
             <View style={styles.details}>
@@ -247,7 +257,7 @@ export default function HomeScreen() {
               <Text style={styles.originalPrice}>236.000 đ</Text>
               <Text style={styles.discount}>-42%</Text>
             </View>
-            
+
 
             {/* Details Section */}
             <View style={styles.details}>
@@ -290,7 +300,7 @@ export default function HomeScreen() {
               <Text style={styles.originalPrice}>34.490.000 đ</Text>
               <Text style={styles.discount}>-4%</Text>
             </View>
-            
+
 
             {/* Details Section */}
             <View style={styles.details}>
@@ -309,46 +319,78 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-
         {/* Khoảng cách giữa các section */}
-        <View style={styles.sectionSpacing} />
-        <Text style={styles.sectionTitle}>Các danh mục</Text>
+        <Text style={styles.ratingTitle}>Đánh giá từ người dùng</Text>
+        <View style={styles.userReviewsContainer}>
 
-        {[ 
-          { icon: 'shopping-bag', label: 'Thời trang và phụ kiện' },
-          { icon: 'star', label: 'Mỹ phẩm & Làm đẹp' },
-          { icon: 'mobile', label: 'Điện thoại di động' },
-          { icon: 'laptop', label: 'Laptop và máy tính bảng' },
-          { icon: 'soccer-ball-o', label: 'Thiết bị thể thao' },
-          { icon: 'pencil', label: 'Đồ dùng học tập' },
-        ].map((cat, index) => (
-          <TouchableOpacity key={index} style={styles.categoryItem}>
-            <View style={styles.categoryContent}>
-              <FontAwesome name={cat.icon} size={20} color="#333" style={{ marginRight: 8 }} />
-              <Text style={styles.categoryText}>{cat.label}</Text>
+          {[
+            {
+              name: 'Minh Choco',
+              avatar: require('../assets/images/avatar.png'),
+              stars: 5,
+              comment: 'Ứng dụng xịn sò dễ dùng cực luôn!',
+            },
+            {
+              name: 'Thảo Milk',
+              avatar: require('../assets/images/cat.jpg'),
+              stars: 4,
+              comment: 'Giao diện cute quá trời luôn, mỗi tội hơi lag tí.',
+            },
+            {
+              name: 'Tuấn Dev',
+              avatar: require('../assets/images/cat1.jpg'),
+              stars: 5,
+              comment: 'Quá tuyệt vời, tìm sản phẩm nhanh lẹ. Rất recommend!',
+            },
+            {
+              name: 'Hà Lười',
+              avatar: require('../assets/images/dog1.jpg'),
+              stars: 3,
+              comment: 'Tạm ổn nha, giao diện đẹp nhưng cần thêm sản phẩm ',
+            },
+            {
+              name: 'Trang Mèo',
+              avatar: require('../assets/images/dog2.jpg'),
+              stars: 5,
+              comment: 'App đáng yêu như chính tui vậy. Dùng là nghiện!',
+            },
+          ].map((user, index) => (
+            <View key={index} style={styles.reviewItem}>
+              <Image source={user.avatar} style={styles.reviewAvatar} />
+              <View style={styles.reviewContent}>
+                <Text style={styles.reviewerName}>{user.name}</Text>
+                <View style={styles.starsRow}>
+                  {[...Array(user.stars)].map((_, i) => (
+                    <FontAwesome key={i} name="star" size={16} color="#FFD700" />
+                  ))}
+                </View>
+                <Text style={styles.reviewText}>{user.comment}</Text>
+              </View>
             </View>
-          </TouchableOpacity>
-        ))}
+          ))}
+        </View>
+
+
       </ScrollView>
 
       {/* Khoảng cách giữa các section */}
       <View style={styles.sectionSpacing} />
       {/* Thanh điều hướng dưới cùng */}
       <View style={styles.bottomTab}>
-        {[ 
+        {[
           { icon: 'home', label: 'Trang chủ', route: '/home' },
           { icon: 'search', label: 'Khám phá', route: '/explore' },
           { icon: 'heart', label: 'Yêu thích', route: '/favorite' },
           { icon: 'user', label: 'Cá nhân', route: '/profile' },
         ].map((tab, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.tab}
-          onPress={() => router.push(tab.route)} 
-        >
-          <FontAwesome name={tab.icon} size={24} color="#000" />
-          <Text style={styles.tabText}>{tab.label}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            key={index}
+            style={styles.tab}
+            onPress={() => router.push(tab.route as '/home' | '/explore' | '/favorite' | '/profile')}
+          >
+            <FontAwesome name={tab.icon as any} size={24} color="#000" />
+            <Text style={styles.tabText}>{tab.label}</Text>
+          </TouchableOpacity>
         ))}
       </View>
     </View>
@@ -384,7 +426,7 @@ const styles = StyleSheet.create({
     height: 50,
     flex: 1,
   },
-    sectionSpacing: {
+  sectionSpacing: {
     height: 20,
   },
   searchIcon: {
@@ -404,7 +446,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     textAlign: 'center',
-    height:100,
+    height: 100,
   },
   sectionTitle: {
     fontSize: 20,
@@ -432,8 +474,8 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     textAlign: 'center',
-    fontSize:16,
-    
+    fontSize: 16,
+
   },
   productCard: {
     backgroundColor: '#FF9966',
@@ -450,7 +492,7 @@ const styles = StyleSheet.create({
   categoryContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex:1,
+    flex: 1,
   },
   bottomTab: {
     flexDirection: 'row',
@@ -473,7 +515,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#000',
   },
-    productName: {
+  productName: {
     fontSize: 14,
     fontWeight: '500',
     marginTop: 6,
@@ -484,7 +526,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 4,
   },
- adContainer: {
+  adContainer: {
     width: '100%', // Để ảnh chiếm toàn bộ chiều rộng của màn hình
     alignItems: 'center', // Căn giữa ảnh
     marginTop: 1, // Khoảng cách từ trên xuống
@@ -550,7 +592,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     marginLeft: 0,
-    marginRight:10,
+    marginRight: 10,
     // Drop shadow for iOS
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -564,7 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginBottom: 10,
-    
+
   },
   logo1: {
     width: 30,
@@ -576,7 +618,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 160,
     resizeMode: 'contain',
-    
+
   },
   priceContainer: {
     flexDirection: 'row',
@@ -627,4 +669,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'green',
   },
+  ratingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 20,
+  },
+  userReviewsContainer: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#fff0f5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f5c6da',
+  },
+  reviewItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  reviewAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  reviewContent: {
+    flex: 1,
+  },
+  reviewerName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  reviewText: {
+    fontSize: 13,
+    marginTop: 4,
+    color: '#333',
+  },
+  starsRow: {
+    flexDirection: 'row',
+    marginTop: 2,
+  },
+
 });

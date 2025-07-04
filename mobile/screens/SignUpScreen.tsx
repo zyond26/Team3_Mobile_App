@@ -5,6 +5,7 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { register } from '../API/api';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
@@ -31,6 +32,7 @@ export default function SignUpScreen() {
     if (!username) newErrors.username = 'Vui lòng nhập tên đăng nhập';
     if (!email) newErrors.email = 'Vui lòng nhập email';
     if (!password) newErrors.password = 'Vui lòng nhập mật khẩu';
+    else if (password.length < 6) newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
     if (!confirm) newErrors.confirm = 'Vui lòng xác nhận lại mật khẩu';
     if (password && confirm && password !== confirm) newErrors.confirm = 'Mật khẩu không khớp';
 
@@ -50,17 +52,25 @@ export default function SignUpScreen() {
         password,
         email,
         full_name: fullName,
+        phone_number: '',
+        address: '',
       });
-      Alert.alert("Thành công", "Tài khoản đã được tạo! Bạn sẽ được chuyển sang trang đăng nhập.", [
-        {
-          text: "OK",
-          onPress: () => router.replace('/signin'), // 👈 chuyển sang màn hình đăng nhập
-        },
-      ]);
+      if (res.data && res.data.user_id) {
+        await AsyncStorage.setItem('user_id', res.data.user_id.toString());
+        Alert.alert("Thành công", res.data.msg || "Tài khoản đã được tạo!", [
+          {
+            text: "OK",
+            onPress: () => router.replace('/signin'),
+          },
+        ]);
+      } else {
+        Alert.alert("Lỗi", "Không nhận được user_id từ server.");
+      }
     } catch (err: any) {
-      Alert.alert("Lỗi", err.response?.data?.detail || 'Không thể đăng ký');
+      Alert.alert("Lỗi đăng ký", err.response?.data?.detail || 'Không thể đăng ký, vui lòng thử lại.');
     }
-  }
+  };
+
   return (
     <View style={styles.container}>
       <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />

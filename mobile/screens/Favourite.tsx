@@ -1,74 +1,216 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import axios from 'axios';
-import { router } from 'expo-router';
+// import FontAwesome from '@expo/vector-icons/build/FontAwesome';
+// import React, { useEffect, useState } from 'react';
+// import {
+//   View,
+//   Text,
+//   Image,
+//   StyleSheet,
+//   TouchableOpacity,
+//   Dimensions,
+//   Alert,
+//   ScrollView,
+// } from 'react-native';
+// import { useNavigation } from '@react-navigation/native';
+// import AsyncStorage from '@react-native-async-storage/async-storage';
+// import { getFavorites, addToFavorites } from '../API/api';
 
-type FavoriteProduct = {
-  product_id: number;
-  name: string;
-  image_url: string;
-  platforms: {
-    platform: {
-      name: string;
-    };
-    price: number;
-    product_url: string;
-  }[];
+// const { width } = Dimensions.get('window');
+
+// type FavoriteItem = {
+//   product?: {
+//     image_url?: string;
+//     name?: string;
+//   };
+//   price?: number;
+//   product_id?: number;
+// };
+
+// export default function Favourite() {
+//   const navigation = useNavigation();
+//   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+
+//   useEffect(() => {
+//     const fetchFavorites = async () => {
+//       try {
+//         const userId = await AsyncStorage.getItem('user_id');
+//         if (!userId) return;
+
+//         const res = await getFavorites(userId);
+//         setFavorites(res.data);
+//       } catch (error) {
+//         console.log('❌ Lỗi khi tải danh sách yêu thích:', error);
+//       }
+//     };
+
+//     fetchFavorites();
+//   }, []);
+
+//   const handleAddFavorite = async (productId: number) => {
+//     const userId = await AsyncStorage.getItem('user_id');
+//     if (!userId) return;
+
+//     try {
+//       const res = await addToFavorites(userId, productId);
+//       Alert.alert('Thành công', res.data.msg || 'Đã thêm sản phẩm vào yêu thích!');
+
+//       // Reload danh sách yêu thích từ server
+//       const updated = await getFavorites(userId);
+//       setFavorites(updated.data);
+//     } catch (err: any) {
+//       Alert.alert('Lỗi', `Không thể thêm vào yêu thích: ${err.response?.data?.detail || 'Vui lòng thử lại.'}`);
+//     }
+//   };
+
+//   const handleTabPress = (label: string) => {
+//     navigation.navigate(label as never);
+//   };
+
+//   return (
+//     <View style={styles.container}>
+//       <Image
+//         source={require('../assets/images/background.jpg')}
+//         style={styles.backgroundImage}
+//       />
+
+//       <ScrollView contentContainerStyle={styles.overlay}>
+//         <View style={styles.heartBox}>
+//           <FontAwesome name="heart" size={40} color="#fff" />
+//           <Text style={styles.heartText}>Sản phẩm yêu thích</Text>
+//         </View>
+
+//         {favorites.length === 0 ? (
+//           <Text style={styles.messageText}>
+//             Hiện tại chưa có sản phẩm, hãy cùng{' '}
+//             <Text style={{ fontWeight: 'bold' }}>Khám phá</Text> các sản phẩm ~
+//           </Text>
+//         ) : (
+//           favorites.map((item, index) => (
+//             <View key={index} style={styles.card}>
+//               {item.product?.image_url ? (
+//                 <Image source={{ uri: item.product.image_url }} style={styles.image} />
+//               ) : (
+//                 <View style={styles.imagePlaceholder}>
+//                   <Text>Không có hình ảnh</Text>
+//                 </View>
+//               )}
+//               <View style={styles.info}>
+//                 <Text style={styles.name}>{item.product?.name || 'Không có tên'}</Text>
+//                 <Text style={styles.price}>{item.price?.toLocaleString() || '0'} đ</Text>
+//               </View>
+//             </View>
+//           ))
+//         )}
+//       </ScrollView>
+
+//       <View style={styles.bottomTab}>
+//         {[
+//           { icon: 'home', label: 'trangchu', text: 'Trang chủ' },
+//           { icon: 'search', label: 'explore', text: 'Khám phá' },
+//           { icon: 'heart', label: 'favorite', text: 'Yêu thích' },
+//           { icon: 'user', label: 'profile', text: 'Cá nhân' },
+//         ].map((tab, index) => (
+//           <TouchableOpacity
+//             key={index}
+//             style={styles.tab}
+//             onPress={() => handleTabPress(tab.label)}
+//           >
+//             <FontAwesome name={tab.icon} size={24} color="#000" />
+//             <Text style={styles.tabText}>{tab.text}</Text>
+//           </TouchableOpacity>
+//         ))}
+//       </View>
+//     </View>
+//   );
+// }
+
+
+import FontAwesome from '@expo/vector-icons/build/FontAwesome';
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, Image, StyleSheet,
+  TouchableOpacity, Dimensions, ScrollView
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getFavorites } from '../API/api';
+
+const { width } = Dimensions.get('window');
+
+type FavoriteItem = {
+  product?: {
+    image_url?: string;
+    name?: string;
+  };
+  price?: number;
 };
 
-export default function FavoriteScreen() {
-  const [favorites, setFavorites] = useState<FavoriteProduct[]>([]);
+export default function Favourite() {
+  const navigation = useNavigation();
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
 
   useEffect(() => {
-    axios.get('http://localhost:8000/favorites/1') // Thay bằng BASE_URL nếu dùng IP
-      .then(res => setFavorites(res.data))
-      .catch(err => console.error(err));
+    const fetchFavorites = async () => {
+      try {
+        const userId = await AsyncStorage.getItem('user_id');
+        if (!userId) return;
+
+        const res = await getFavorites(userId);
+        setFavorites(res.data);
+      } catch (error) {
+        console.log('❌ Lỗi khi tải danh sách yêu thích:', error);
+      }
+    };
+
+    fetchFavorites();
   }, []);
+
+  const handleTabPress = (label: string) => {
+    navigation.navigate(label as never);
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Yêu thích</Text>
+      <Image source={require('../assets/images/background.jpg')} style={styles.backgroundImage} />
 
-      <ScrollView>
+      <ScrollView contentContainerStyle={styles.overlay}>
+        <View style={styles.heartBox}>
+          <FontAwesome name="heart" size={40} color="#fff" />
+          <Text style={styles.heartText}>Sản phẩm yêu thích</Text>
+        </View>
+
         {favorites.length === 0 ? (
-          <Text style={styles.empty}>Chưa có sản phẩm yêu thích</Text>
+          <Text style={styles.messageText}>
+            Hiện tại chưa có sản phẩm, hãy cùng <Text style={{ fontWeight: 'bold' }}>Khám phá</Text> các sản phẩm ~
+          </Text>
         ) : (
-          favorites.map((item) => (
-            <View key={item.product_id} style={styles.card}>
-              <Image source={{ uri: item.image_url }} style={styles.image} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.name}</Text>
-                {item.platforms.length > 0 && (
-                  <>
-                    <Text style={styles.price}>
-                      {item.platforms[0].price.toLocaleString()} đ ({item.platforms[0].platform.name})
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => Linking.openURL(item.platforms[0].product_url)}
-                      style={styles.buyButton}
-                    >
-                      <Text style={styles.buyButtonText}>Tới nơi bán</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
+          favorites.map((item, index) => (
+            <View key={index} style={styles.card}>
+              {item.product?.image_url ? (
+                <Image source={{ uri: item.product.image_url }} style={styles.image} />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Text>Không có hình ảnh</Text>
+                </View>
+              )}
+              <View style={styles.info}>
+                <Text style={styles.name}>{item.product?.name || 'Không có tên'}</Text>
+                <Text style={styles.price}>{item.price?.toLocaleString() || '0'} đ</Text>
               </View>
             </View>
           ))
         )}
       </ScrollView>
 
-      {/* Bottom Tab Navigation */}
       <View style={styles.bottomTab}>
-        {([
-          { icon: 'home' as 'home', label: 'Trang chủ', route: '/home' as const },
-          { icon: 'search' as 'search', label: 'Khám phá', route: '/explore' as const },
-          { icon: 'heart' as 'heart', label: 'Yêu thích', route: '/favorite' as const },
-          { icon: 'user' as 'user', label: 'Cá nhân', route: '/profile' as const },
-        ]).map((tab, index) => (
-          <TouchableOpacity key={index} style={styles.tab} onPress={() => router.push(tab.route)}>
+        {[
+          { icon: 'home', label: 'trangchu', text: 'Trang chủ' },
+          { icon: 'search', label: 'explore', text: 'Khám phá' },
+          { icon: 'heart', label: 'favorite', text: 'Yêu thích' },
+          { icon: 'user', label: 'profile', text: 'Cá nhân' },
+        ].map((tab, index) => (
+          <TouchableOpacity key={index} style={styles.tab} onPress={() => handleTabPress(tab.label)}>
             <FontAwesome name={tab.icon} size={24} color="#000" />
-            <Text style={styles.tabText}>{tab.label}</Text>
+            <Text style={styles.tabText}>{tab.text}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -77,42 +219,90 @@ export default function FavoriteScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: 50, paddingHorizontal: 16 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16, textAlign: 'center' },
-  empty: { textAlign: 'center', color: '#888', marginTop: 20 },
-  card: {
-    flexDirection: 'row',
-    backgroundColor: '#f9f9f9',
-    marginBottom: 12,
-    borderRadius: 10,
-    padding: 10,
+  container: { flex: 1 },
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  overlay: {
+    padding: 20,
+    paddingBottom: 140,
+  },
+  heartBox: {
+    backgroundColor: '#EAAE99',
+    padding: 20,
+    borderRadius: 20,
     alignItems: 'center',
+    marginBottom: 20,
   },
-  image: { width: 80, height: 80, marginRight: 12, borderRadius: 8 },
-  name: { fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
-  price: { color: '#e53935', fontSize: 14, marginBottom: 6 },
-  buyButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+  heartText: {
+    marginTop: 10,
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  buyButtonText: { color: '#fff', fontWeight: 'bold' },
+  messageText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#333',
+  },
   bottomTab: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#D17842',
-    paddingVertical: 10,
+    backgroundColor: '#EAAE99',
+    paddingVertical: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     position: 'absolute',
     bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    borderTopColor: '#ddd',
-    borderRadius: 40,
+    width: width,
   },
   tab: { alignItems: 'center' },
-  tabText: { fontSize: 12, color: '#000', marginTop: 4 },
+  tabText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#000',
+  },
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  image: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  imagePlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 10,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  info: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  price: {
+    fontSize: 14,
+    color: '#E53935',
+  },
 });

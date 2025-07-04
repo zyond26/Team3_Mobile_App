@@ -1,35 +1,44 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime
 
 
-# ======= USER =======
+
 class UserCreate(BaseModel):
     username: str
-    password: str
-    email: Optional[str]
-    full_name: Optional[str]
-    phone_number: Optional[str]
-    address: Optional[str]
+    password: str = Field(..., min_length=6)
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "username": "testuser",
+                "password": "strongpassword123",
+                "email": "test@example.com",
+                "full_name": "Test User",
+                "phone_number": "123456789",
+                "address": "123 Street"
+            }
+        }
 
 class UserLogin(BaseModel):
-    email: Optional[str]
+    email: EmailStr  # Yêu cầu email, không còn tùy chọn
     password: str
-
 
 class UserOut(BaseModel):
     user_id: int
     username: str
-    email: Optional[str]
-    full_name: Optional[str]
-    phone_number: Optional[str]
-    address: Optional[str]
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
-
 
 # ======= PLATFORM =======
 class PlatformOut(BaseModel):

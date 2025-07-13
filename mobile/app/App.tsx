@@ -1,13 +1,11 @@
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Text, View, TouchableOpacity } from 'react-native';
+import CompareProductScreen from '../screens/CompareProductScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-
 export default function Home() {
-  const navigation = useNavigation();
-  const Stack = createNativeStackNavigator();
-
+const navigation = useNavigation();
+const Stack = createNativeStackNavigator();
   return (
     <View style={{ padding: 20 }}>
       <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>

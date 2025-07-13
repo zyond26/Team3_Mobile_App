@@ -1,46 +1,52 @@
-// screens/ThongTinCaNhan.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert
+  View, Text, StyleSheet, ScrollView,
+  TouchableOpacity, TextInput, Alert,
+  ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserInfo, updateUserInfo } from '@/API/api';
+import { BASE_URL } from '@/constants';
+import { FontAwesome } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
-export default function thongtincanhan() {
-  const [userInfo, setUserInfo] = useState<any>({
-    username: '',
-    email: '',
-    full_name: '',
-    phone_number: '',
-    address: ''
-  });
-
+export default function ThongTinCaNhan() {
+  const [userInfo, setUserInfo] = useState<any>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      const userId = await AsyncStorage.getItem('user_id');
-      if (!userId) {
-        Alert.alert("Lỗi", "Không tìm thấy user_id. Vui lòng đăng nhập lại.");
-        return;
-      }
-
+    const fetchUser = async () => {
       try {
-        const res = await getUserInfo(Number(userId));
-        setUserInfo(res.data);
-      } catch (err: any) {
-        Alert.alert("Lỗi", `Không thể tải thông tin người dùng: ${err.response?.data?.detail || 'Vui lòng thử lại.'}`);
+        const userId = await AsyncStorage.getItem('user_id');
+        console.log("Fetched user_id from storage:", userId);
+
+        if (!userId) {
+          Alert.alert("Lỗi", "Không tìm thấy user_id trong bộ nhớ.");
+          return;
+        }
+
+        const response = await fetch(`${BASE_URL}/api/user/${userId}`);
+        if (!response.ok) throw new Error("Lỗi khi gọi API");
+
+        const data = await response.json();
+        console.log("Fetched user info:", data);
+
+        setUserInfo({
+          username: data.username,
+          email: data.email,
+          password: data.password_hash,
+          fullName: data.full_name || '',
+          phone: data.phone_number || '',
+          address: data.address || '',
+        });
+      } catch (err) {
+        console.error("Error fetching user info:", err);
+        Alert.alert("Lỗi", "Không thể tải thông tin người dùng");
       }
     };
-
-    fetchUserInfo();
+    
+    fetchUser();
   }, []);
 
   const handleEdit = (field: string, value: string) => {
@@ -48,76 +54,83 @@ export default function thongtincanhan() {
     setTempValue(value);
   };
 
-  const handleSave = async () => {
-    const userId = await AsyncStorage.getItem('user_id');
-    if (!userId || !editingField) return;
-    if (editingField === 'phone_number' && !/^\d{9,11}$/.test(tempValue)) {
-      Alert.alert("Lỗi", "Số điện thoại phải có từ 9 đến 11 chữ số.");
-      return;
-    }
-
-    try {
-      // Gửi field cần cập nhật
-      await updateUserInfo(Number(userId), { [editingField]: tempValue });
-
-      // ✅ Sau khi cập nhật thành công, gọi lại API để lấy dữ liệu mới
-      const res = await getUserInfo(Number(userId));
-      setUserInfo(res.data);
-
-      setEditingField(null);
-      Alert.alert("Thành công", "Thông tin đã được cập nhật.");
-    } catch (err: any) {
-      Alert.alert("Lỗi", `Không thể cập nhật thông tin: ${err.response?.data?.detail || 'Vui lòng thử lại.'}`);
-    }
+  const handleSave = () => {
+    setUserInfo({ ...userInfo, [editingField!]: tempValue });
+    setEditingField(null);
   };
+
+  if (!userInfo) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#007BFF" />
+        <Text style={{ marginTop: 10 }}>Đang tải dữ liệu...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Thông Tin Cá Nhân</Text>
 
-      {[
-        ['username', userInfo.username],
-        ['email', userInfo.email],
-        ['full_name', userInfo.full_name],
-        ['phone_number', userInfo.phone_number],
-        ['address', userInfo.address],
-      ].map(([field, value]) => (
+      {Object.entries(userInfo).map(([field, value]) => (
         <TouchableOpacity
           key={field}
           style={styles.infoBox}
-          onPress={() => handleEdit(field, value || '')}
-          disabled={field === 'username' || field === 'email'}
+          onPress={() => handleEdit(field, String(value))}
+          activeOpacity={field === 'password' ? 1 : 0.7}
         >
           <Text style={styles.label}>{getLabel(field)}</Text>
-          {editingField === field ? (
-            <TextInput
-              style={styles.input}
-              value={tempValue}
-              keyboardType={field === 'phone_number' ? 'numeric' : 'default'}
-              onChangeText={(text) => {
-                if (field === 'phone_number') {
-                  const onlyNumbers = text.replace(/[^0-9]/g, '');
-                  setTempValue(onlyNumbers);
-                } else {
-                  setTempValue(text);
-                }
-              }}
-              onSubmitEditing={handleSave}
-              autoFocus
-            />
 
+          {editingField === field ? (
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                value={tempValue}
+                onChangeText={setTempValue}
+                onSubmitEditing={handleSave}
+                autoFocus
+                secureTextEntry={field === 'password' && !showPassword}
+              />
+              {field === 'password' && (
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                >
+                  <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={20} color="#555" />
+                </TouchableOpacity>
+              )}
+            </View>
           ) : (
-            <Text style={styles.value}>{value || 'Chưa có'}</Text>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.value}>
+                {field === 'password' && !showPassword ? '********' : String(value)}
+              </Text>
+              {field === 'password' && (
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                >
+                  <FontAwesome name={showPassword ? 'eye-slash' : 'eye'} size={20} color="#555" />
+                </TouchableOpacity>
+              )}
+            </View>
           )}
         </TouchableOpacity>
+      
+
       ))}
 
-      {editingField && (
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveText}>Lưu thay đổi</Text>
+      <View style={styles.logoutContainer}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => router.push('/')}
+          activeOpacity={0.8}
+        >
+          <FontAwesome name="sign-out" size={20} color="#fff" style={styles.logoutIcon} />
+          <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
-      )}
-    </ScrollView>
+      </View>
+  </ScrollView>
   );
 }
 
@@ -125,8 +138,9 @@ const getLabel = (field: string) => {
   switch (field) {
     case 'username': return 'Tên đăng nhập';
     case 'email': return 'Email';
-    case 'full_name': return 'Họ và tên';
-    case 'phone_number': return 'Số điện thoại';
+    case 'password': return 'Mật khẩu';
+    case 'fullName': return 'Họ và tên';
+    case 'phone': return 'Số điện thoại';
     case 'address': return 'Địa chỉ';
     default: return field;
   }
@@ -134,7 +148,7 @@ const getLabel = (field: string) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 30,
+    paddingVertical: 100,
     paddingHorizontal: 20,
     backgroundColor: '#FAFAFA',
   },
@@ -183,5 +197,40 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  }
+  },
+  inputWrapper: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -10 }],
+  },
+
+  logoutContainer: {
+    alignItems: 'center',
+    marginTop: 30,
+    marginBottom: 20,
+  },
+  logoutButton: {
+    backgroundColor: '#FF3B30',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 95,
+    borderRadius: 15,
+    elevation: 5,
+    minWidth: 200,
+  },
+  logoutIcon: {
+    marginRight: 10,
+  },
+  logoutText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });

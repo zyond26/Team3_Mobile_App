@@ -8,7 +8,7 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        Welcome to <Text style={styles.bold}>PriceWise</Text>
+       Chào mừng đến với <Text style={styles.bold}>PriceWise</Text>
       </Text>
 
       <Image
@@ -21,14 +21,14 @@ export default function WelcomeScreen() {
         style={styles.signInButton}
         onPress={() => router.push('/signin')} // Điều hướng sang /signin
       >
-        <Text style={styles.signInText}>Sign In</Text>
+        <Text style={styles.signInText}>Đăng Nhập</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.signUpButton}
         onPress={() => router.push('/signup')} // Điều hướng sang /signup
       >
-        <Text style={styles.buttonText}>Sign Up</Text>
+        <Text style={styles.buttonText}>Đăng Ký</Text>
       </TouchableOpacity>
     </View>
   );

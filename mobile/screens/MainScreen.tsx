@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  RefreshControl,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -10,12 +15,117 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation, DrawerActions } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeSlider from '../components/HomeSlider';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router'; 
+import ProductCard from '../components/ProductCard';
+import axios from 'axios';
+import { addToFavorites, BASE_URL, removeFromFavorites } from '@/constants';
+import NavigationBar from '@/components/NavigationBar';
+import CustomLoading from '@/components/CustomLoading';
+import TripleRingLoader from '@/components/TripleRingLoader';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [favoriteStates, setFavoriteStates] = useState(products.map(() => false));
+  const params = useLocalSearchParams();
+  const selectedCategory = params.category;
+  const [refreshing, setRefreshing] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<Set<number>>(new Set());
+  
+  const toggleFavorite = async (productId: number, productPlatformId: number) => {
+    const userIdStr = await AsyncStorage.getItem('user_id');
+    if (!userIdStr) {
+      Alert.alert("Thông báo", "Vui lòng đăng nhập để sử dụng chức năng yêu thích.");
+      return;
+    }
+
+    const userId = parseInt(userIdStr);
+    const isFav = favoriteIds.has(productPlatformId);
+
+    try {
+      if (isFav) {
+        await removeFromFavorites(productId, userId, productPlatformId);
+        setFavoriteIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(productPlatformId);
+          return updated;
+        });
+        Alert.alert("Đã xoá khỏi yêu thích");
+      } else {
+        await addToFavorites(productId, userId, productPlatformId);
+        setFavoriteIds((prev) => new Set(prev).add(productPlatformId));
+        Alert.alert("Đã thêm vào yêu thích");
+      }
+    } catch (error) {
+      console.error("Lỗi khi xử lý yêu thích:", error);
+      Alert.alert("Lỗi", "Không thể xử lý yêu thích.");
+    }
+  };
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Gọi API hoặc load lại dữ liệu ở đây
+    setTimeout(() => {
+      setRefreshing(false); // Kết thúc refresh
+    }, 2000);
+  }, []);
+
+  // useEffect(() => {
+  //   axios.get(`${BASE_URL}/api/products`)
+  //     .then((res) => {
+  //       setProducts(res.data);
+  //       setLoading(false);
+  //     })
+  //     .catch((err) => {
+  //       console.error('Error fetching data', err);
+  //       setLoading(false);
+  //     });
+  // }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const userId = await AsyncStorage.getItem("user_id");
+      if (!userId) return;
+
+      const resProduct = await axios.get(`${BASE_URL}/api/products`);
+      const resFav = await axios.get(`${BASE_URL}/favorites/user/${userId}`);
+
+      const favoriteIds = new Set(resFav.data.map((fav) => fav.product_platform_id));
+      setFavoriteIds(favoriteIds);
+      setProducts(resProduct.data);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+
+  // if (loading) {
+  //   return <ActivityIndicator size="large" color="#000" />;
+  // }
+
+  // if (loading) {
+  //   return (
+  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+  //       <ActivityIndicator size="large" color="#007BFF" />
+  //       <Text style={{ marginTop: 10 }}>Đang tải dữ liệu...</Text>
+  //     </View>
+  //   );
+  // }
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <TripleRingLoader />
+        <Text style={{ marginTop: 10 }}>Đang tải dữ liệu...</Text>
+      </View>
+    );
+  }
 
   // Dữ liệu slider
   const sliderData = [
@@ -45,23 +155,29 @@ export default function HomeScreen() {
     // Có thể mở link hoặc navigate đến trang chi tiết
   };
 
-  // Đặt biến trạng thái cho từng card trước phần return hoặc trong component
-  const isAvailable1 = true;  // Card 1: còn hàng
-  const isAvailable2 = true;  // Card 2: còn hàng
-  const isAvailable3 = false; // Card 3: hết hàng
-  const isAvailable4 = true;  // Card 4: còn hàng
+  const handleToggleFavorite = (index) => {
+    setFavoriteStates((prev) => {
+      const updated = [...prev];
+      updated[index] = !updated[index];
+      return updated;
+    });
+  };
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} style={[styles.container, { marginTop: 20 }]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor:'white',  }}>
+      <StatusBar 
+      barStyle={'dark-content'}
+      backgroundColor={'red'}
+      >
+
+      </StatusBar>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} 
+      style={styles.container} 
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }>
         {/* Thanh tìm kiếm */}
-        <View style={styles.headerContainer}>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-          >
-            <FontAwesome name="bars" size={20} color="#333" />
-          </TouchableOpacity>
+        {/* <View style={styles.headerContainer}>
 
           <View style={styles.searchBox}>
             <FontAwesome name="search" size={20} color="#D17842" style={styles.searchIcon} />
@@ -72,14 +188,21 @@ export default function HomeScreen() {
             />
           </View>
 
-          <Image
-            source={require('../assets/images/logo.png')}
-            style={styles.logo}
-          />
+          <View style={styles.logoContainer}>
+            <Image
+                source={require('../assets/images/logo1.png')}
+                style={styles.logo}
+            />
+          </View>
+        </View> */}
+
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Trang chủ</Text>
+          <Image source={require('../assets/images/logo.png')} style={styles.logoContainer} />
         </View>
 
         {/* Home Slider */}
-        <HomeSlider
+        <HomeSlider 
           data={sliderData}
           autoPlay={true}
           autoPlayInterval={4000}
@@ -87,47 +210,50 @@ export default function HomeScreen() {
         />
 
         <Text style={styles.sectionTitle}>Danh mục phổ biến</Text>
-
-        {/* Grid Categories */}
-        <View style={styles.categoryGrid}>
+       <View style={styles.categoryGrid}>
           {[
-            {
-              img: require('../assets/images/category.png'),
-              label: 'Thời trang&Phụ kiện',
-              link: ''
+            { 
+              img: require('../assets/images/category.png'), 
+              label: 'Thời trang & Phụ kiện',
+              id: 1
             },
-            {
-              img: require('../assets/images/comestic.png'),
+            { 
+              img: require('../assets/images/comestic.png'), 
               label: 'Mỹ phẩm & Làm đẹp',
-              link: ''
+              id: 2
             },
-            {
-              img: require('../assets/images/laptopmaytinhbang.png'),
-              label: 'Laptop và Tablet',
-              link: ''
+            { 
+              img: require('../assets/images/laptopmaytinhbang.png'), 
+              label: 'Laptop & Tablet',
+              id: 4
             },
-            {
-              img: require('../assets/images/thietbithethao.png'),
+            { 
+              img: require('../assets/images/thietbithethao.png'), 
               label: 'Thiết bị thể thao',
-              link: ''
+              id: 5
             },
-            {
-              img: require('../assets/images/dienthoaididong.jpg'),
+            { 
+              img: require('../assets/images/dienthoaididong.jpg'), 
               label: 'Điện thoại di động',
-              link: ''
+              id: 3
             },
-            {
-              img: require('../assets/images/dodunghoctap.png'),
+            { 
+              img: require('../assets/images/dodunghoctap.png'), 
               label: 'Đồ dùng học tập',
-              link: ''
+              id: 6
             },
-          ].map((cat, index) => (
+          ].map((cat) => (
             <TouchableOpacity
-              key={index}
+              key={`category-${cat.id}`}
               style={styles.categoryGridItem}
               onPress={() => {
-                // Xử lý khi nhấn vào category
-                console.log('Category pressed:', cat.label);
+                router.push({
+                  pathname: "/drawer/explore",
+                  params: { 
+                    categoryId: cat.id.toString(), 
+                    categoryName: cat.label 
+                  }
+                });
               }}
             >
               <View style={styles.categoryGridInner}>
@@ -144,185 +270,36 @@ export default function HomeScreen() {
 
         {/* Khoảng cách giữa các section */}
         <View style={styles.sectionSpacing} />
-        <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
-
+        <Text style={styles.sectionTitle2}>Sản phẩm nổi bật</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 16 }}>
-          <View style={styles.card}>
-            {/* Top Icons */}
-            <View style={styles.topIcons}>
-              <Image
-                source={require('../assets/images/Shoppe.jpg')} // Replace with Shopee logo URL or local image
-                style={styles.logo1}
+          <View style={{ flexDirection: 'row' }}>
+          {products.map((item, index) => (
+              <ProductCard
+                key={`${item.productId}-${item.productPlatformId}`} 
+                productId={item.productId}
+                productPlatformId={item.productPlatformId}
+                productName={item.productName}
+                platformLogo={item.platformLogo}
+                productImage={item.productImage}
+                currentPrice={item.currentPrice}
+                originalPrice={item.originalPrice}
+                discountPercentage={item.discountPercentage}
+                shippingFee={item.shippingFee}
+                totalPrice={item.totalPrice}
+                isAvailable={item.isAvailable}
+                rating={item.rating}
+                productUrl={item.productUrl}
+                isFavorite={favoriteIds.has(item.productPlatformId)}
+                onToggleFavorite={() => toggleFavorite(item.productId, item.productPlatformId)}
               />
-              <TouchableOpacity>
-                {/* <Icon name="favorite-border" size={24} color="#FF2D55" /> */}
-              </TouchableOpacity>
-            </View>
-
-            {/* Image Section */}
-            <Image
-              source={require('../assets/images/IP15.jpg')} // Replace with your image URL or local image
-              style={styles.image}
-            />
-
-            {/* Price Section */}
-            <Text style={styles.currentPrice}>32.990.000 đ</Text>
-            <View style={styles.priceContainer}>
-              <Text style={styles.originalPrice}>34.490.000 đ</Text>
-              <Text style={styles.discount}>-4%</Text>
-            </View>
-
-
-            {/* Details Section */}
-            <View style={styles.details}>
-              <Text>Phí VC: 0 đ</Text>
-              <Text>Tổng: 32.990.000 đ</Text>
-              <Text style={styles.status}>
-                Trạng thái: <Text style={[styles.statusValue, { color: isAvailable1 ? 'green' : 'red' }]}>{isAvailable1 ? 'Còn hàng' : 'Hết hàng'}</Text>
-              </Text>
-              <Text style={styles.rating}>⭐ Chưa có đánh giá</Text>
-            </View>
-
-            {/* Buy Button with Cart Icon */}
-            <TouchableOpacity style={styles.buyButton}>
-              <Icon name="shopping-cart" size={18} color="white" style={styles.cartIcon} />
-              <Text style={styles.buyButtonText}>Tới nơi bán</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.card}>
-            {/* Top Icons */}
-            <View style={styles.topIcons}>
-              <Image
-                source={require('../assets/images/Lazada.jpg')} // Replace with Shopee logo URL or local image
-                style={styles.logo1}
-              />
-              <TouchableOpacity>
-                {/* <Icon name="favorite-border" size={24} color="#FF2D55" /> */}
-              </TouchableOpacity>
-            </View>
-
-            {/* Image Section */}
-            <Image
-              source={require('../assets/images/Nitendo.jpg')} // Replace with your image URL or local image
-              style={styles.image}
-            />
-
-            {/* Price Section */}
-            <Text style={styles.currentPrice}>13.499.000 đ</Text>
-            <View style={styles.priceContainer}>
-              <Text style={styles.originalPrice}>15.000.000 đ</Text>
-              <Text style={styles.discount}>-10%</Text>
-            </View>
-
-
-            {/* Details Section */}
-            <View style={styles.details}>
-              <Text>Phí VC: 0 đ</Text>
-              <Text>Tổng: 13.499.000 đ</Text>
-              <Text style={styles.status}>
-                Trạng thái: <Text style={[styles.statusValue, { color: isAvailable2 ? 'green' : 'red' }]}>{isAvailable2 ? 'Còn hàng' : 'Hết hàng'}</Text>
-              </Text>
-              <Text style={styles.rating}>⭐ Chưa có đánh giá</Text>
-            </View>
-
-            {/* Buy Button with Cart Icon */}
-            <TouchableOpacity style={styles.buyButton}>
-              <Icon name="shopping-cart" size={18} color="white" style={styles.cartIcon} />
-              <Text style={styles.buyButtonText}>Tới nơi bán</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.card}>
-            {/* Top Icons */}
-            <View style={styles.topIcons}>
-              <Image
-                source={require('../assets/images/Tiki.jpg')} // Replace with Shopee logo URL or local image
-                style={styles.logo1}
-              />
-              <TouchableOpacity>
-                {/* <Icon name="favorite-border" size={24} color="#FF2D55" /> */}
-              </TouchableOpacity>
-            </View>
-
-            {/* Image Section */}
-            <Image
-              source={require('../assets/images/The_Village.jpg')} // Replace with your image URL or local image
-              style={styles.image}
-            />
-
-            {/* Price Section */}
-            <Text style={styles.currentPrice}>137.012 đ</Text>
-            <View style={styles.priceContainer}>
-              <Text style={styles.originalPrice}>236.000 đ</Text>
-              <Text style={styles.discount}>-42%</Text>
-            </View>
-
-
-            {/* Details Section */}
-            <View style={styles.details}>
-              <Text>Phí VC: 0 đ</Text>
-              <Text>Tổng: 137.012  đ</Text>
-              <Text style={styles.status}>
-                Trạng thái: <Text style={[styles.statusValue, { color: isAvailable3 ? 'green' : 'red' }]}>{isAvailable3 ? 'Còn hàng' : 'Hết hàng'}</Text>
-              </Text>
-              <Text style={styles.rating}>⭐ Chưa có đánh giá</Text>
-            </View>
-
-            {/* Buy Button with Cart Icon */}
-            <TouchableOpacity style={styles.buyButton}>
-              <Icon name="shopping-cart" size={18} color="white" style={styles.cartIcon} />
-              <Text style={styles.buyButtonText}>Tới nơi bán</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.card}>
-            {/* Top Icons */}
-            <View style={styles.topIcons}>
-              <Image
-                source={require('../assets/images/Shoppe.jpg')} // Replace with Shopee logo URL or local image
-                style={styles.logo1}
-              />
-              <TouchableOpacity>
-                {/* <Icon name="favorite-border" size={24} color="#FF2D55" /> */}
-              </TouchableOpacity>
-            </View>
-
-            {/* Image Section */}
-            <Image
-              source={require('../assets/images/IP15.jpg')} // Replace with your image URL or local image
-              style={styles.image}
-            />
-
-            {/* Price Section */}
-            <Text style={styles.currentPrice}>32.990.000 đ</Text>
-            <View style={styles.priceContainer}>
-              <Text style={styles.originalPrice}>34.490.000 đ</Text>
-              <Text style={styles.discount}>-4%</Text>
-            </View>
-
-
-            {/* Details Section */}
-            <View style={styles.details}>
-              <Text>Phí VC: 0 đ</Text>
-              <Text>Tổng: 32.990.000 đ</Text>
-              <Text style={styles.status}>
-                Trạng thái: <Text style={[styles.statusValue, { color: isAvailable4 ? 'green' : 'red' }]}>{isAvailable4 ? 'Còn hàng' : 'Hết hàng'}</Text>
-              </Text>
-              <Text style={styles.rating}>⭐ Chưa có đánh giá</Text>
-            </View>
-
-            {/* Buy Button with Cart Icon */}
-            <TouchableOpacity style={styles.buyButton}>
-              <Icon name="shopping-cart" size={18} color="white" style={styles.cartIcon} />
-              <Text style={styles.buyButtonText}>Tới nơi bán</Text>
-            </TouchableOpacity>
+            ))}
           </View>
         </ScrollView>
         {/* Khoảng cách giữa các section */}
-        <Text style={styles.ratingTitle}>Đánh giá từ người dùng</Text>
         <View style={styles.userReviewsContainer}>
-
+          <Text style={styles.ratingTitle}>Đánh giá từ người dùng</Text>
+          {/* Khoảng cách giữa các section */}
+          <View style={styles.sectionSpacing} />
           {[
             {
               name: 'Minh Choco',
@@ -369,40 +346,30 @@ export default function HomeScreen() {
             </View>
           ))}
         </View>
-
-
       </ScrollView>
 
       {/* Khoảng cách giữa các section */}
       <View style={styles.sectionSpacing} />
+
       {/* Thanh điều hướng dưới cùng */}
-      <View style={styles.bottomTab}>
-        {[
-          { icon: 'home', label: 'Trang chủ', route: '/home' },
-          { icon: 'search', label: 'Khám phá', route: '/explore' },
-          { icon: 'heart', label: 'Yêu thích', route: '/favorite' },
-          { icon: 'user', label: 'Cá nhân', route: '/profile' },
-        ].map((tab, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.tab}
-            onPress={() => router.push(tab.route as '/home' | '/explore' | '/favorite' | '/profile')}
-          >
-            <FontAwesome name={tab.icon as any} size={24} color="#000" />
-            <Text style={styles.tabText}>{tab.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
+
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+
+  //HEADER
+
   container: {
     flex: 1,
     padding: 20,
+    paddingTop: 40,
     backgroundColor: '#fff',
+    marginTop:-30,
   },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold' },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -411,10 +378,18 @@ const styles = StyleSheet.create({
   menuButton: {
     marginRight: 10,
   },
+  logoContainer: {
+    width: 60, 
+    height: 50, 
+    overflow: 'hidden', 
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    },
   logo: {
-    width: 40,
-    height: 40,
-    marginLeft: 10,
+    width: '110%', 
+    height: '100%', 
+    resizeMode: 'contain', 
   },
   searchBox: {
     flexDirection: 'row',
@@ -426,7 +401,7 @@ const styles = StyleSheet.create({
     height: 50,
     flex: 1,
   },
-  sectionSpacing: {
+    sectionSpacing: {
     height: 20,
   },
   searchIcon: {
@@ -436,6 +411,10 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
   },
+
+
+  //BANNER
+
   adBanner: {
     backgroundColor: '#FF0000',
     borderRadius: 10,
@@ -446,14 +425,40 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     textAlign: 'center',
-    height: 100,
+    height:100,
   },
+
+ adContainer: {
+    width: '100%', 
+    alignItems: 'center', 
+    marginTop: 1, 
+    marginBottom: 1, 
+  },
+  adImage: {
+    width: '100%', 
+    height: undefined,
+    aspectRatio: 1.77, 
+    marginTop: -10, 
+  },
+
+  //DANH MỤC
+
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginTop: 50,
+    marginBottom: 20,
     color: '#333',
   },
+
+  sectionTitle2: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 30,
+    marginBottom: 7,
+    color: '#333',
+  },
+
   categoryContainer: {
     flexDirection: 'row',
     marginBottom: 20,
@@ -474,8 +479,8 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     textAlign: 'center',
-    fontSize: 16,
-
+    fontSize:16,
+    
   },
   productCard: {
     backgroundColor: '#FF9966',
@@ -492,30 +497,37 @@ const styles = StyleSheet.create({
   categoryContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    flex:1,
+  },
+ bottomTabContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    
   },
   bottomTab: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#D17842',
-    paddingVertical: 10,
-    position: 'absolute',
-    borderTopColor: '#ddd',
-    borderRadius: 40,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
+    paddingVertical: 14,
+    borderRadius: 20,
+    width: 375,
+    marginBottom:20,
+    shadowColor: '#999',
+   
   },
   tab: {
     alignItems: 'center',
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#000',
+    marginTop: 4,
   },
-  productName: {
+    productName: {
     fontSize: 14,
     fontWeight: '500',
     marginTop: 6,
@@ -526,23 +538,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 4,
   },
-  adContainer: {
-    width: '100%', // Để ảnh chiếm toàn bộ chiều rộng của màn hình
-    alignItems: 'center', // Căn giữa ảnh
-    marginTop: 1, // Khoảng cách từ trên xuống
-    marginBottom: 1, // Khoảng cách từ dưới lên
-  },
-  adImage: {
-    width: '100%', // Kích thước ảnh sẽ là 100% chiều rộng của màn hình
-    height: undefined, // Để chiều cao tự động theo tỷ lệ
-    aspectRatio: 1.77, // Tỷ lệ khung hình cho ảnh (ví dụ: 16:9)
-    marginTop: -10, // Dịch ảnh lên trên
-  },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   categoryGridItem: {
     width: '48%',
@@ -583,7 +583,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  card: {
+ //SẢN PHẨM
+
+    card: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
@@ -592,13 +594,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     marginLeft: 0,
-    marginRight: 10,
-    // Drop shadow for iOS
+    marginRight:10,
+
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
-    // Drop shadow for Android
+
     elevation: 6,
   },
   topIcons: {
@@ -606,7 +608,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginBottom: 10,
-
+    
   },
   logo1: {
     width: 30,
@@ -618,7 +620,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 160,
     resizeMode: 'contain',
-
+    
   },
   priceContainer: {
     flexDirection: 'row',
@@ -661,7 +663,6 @@ const styles = StyleSheet.create({
     marginRight: 5,
   },
   status: {
-
     marginBottom: 2,
     color: '#000',
   },
@@ -669,44 +670,43 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'green',
   },
-  ratingTitle: {
+  // style đánh giá
+  ratingTitle:{
     fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 20,
   },
-  userReviewsContainer: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#fff0f5',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#f5c6da',
-  },
-  reviewItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  reviewAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
-  },
-  reviewContent: {
-    flex: 1,
-  },
-  reviewerName: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  reviewText: {
-    fontSize: 13,
-    marginTop: 4,
-    color: '#333',
-  },
-  starsRow: {
-    flexDirection: 'row',
-    marginTop: 2,
-  },
+ userReviewsContainer: {
+  marginTop: 24,
+  padding: 16,
+  backgroundColor: '#fff0f5',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#f5c6da',
+},
+reviewItem: {
+  flexDirection: 'row',
+  marginBottom: 16,
+},
+reviewAvatar: {
+  width: 40,
+  height: 40,
+  borderRadius: 20,
+  marginRight: 12,
+},
+reviewContent: {
+  flex: 1,
+},
+reviewerName: {
+  fontWeight: 'bold',
+  fontSize: 14,
+},
+reviewText: {
+  fontSize: 13,
+  marginTop: 4,
+  color: '#333',
+},
+starsRow: {
+  flexDirection: 'row',
+  marginTop: 2,
+},
 
 });

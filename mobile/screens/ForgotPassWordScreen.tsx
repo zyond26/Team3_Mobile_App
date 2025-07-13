@@ -9,16 +9,34 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { BASE_URL } from '@/constants';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
 
-  const handleSubmit = () => {
+ const handleSubmit = async () => {
     if (!email.trim()) {
       Alert.alert('Thông báo', 'Vui lòng nhập địa chỉ email!');
       return;
     }
-    Alert.alert('Gửi thành công', 'Kiểm tra email để đặt lại mật khẩu!');
+
+    try {
+      const res = await fetch(`${BASE_URL}/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Gửi email thất bại");
+      }
+
+      Alert.alert('Thành công', 'Vui lòng kiểm tra email để đặt lại mật khẩu!');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message);
+    }
   };
 
   return (
